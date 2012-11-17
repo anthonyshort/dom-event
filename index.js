@@ -17,14 +17,21 @@ var extend = require('extend');
  * If I've missed anything, submit an issue on Github.
  */
 
+// Events that will bubble in IE8
 var bubbleEvents = [ "select", "scroll", "click", "dblclick",
     "mousedown", "mousemove", "mouseout", "mouseover", "mouseup", "wheel", "textinput",
     "keydown", "keypress", "keyup"];
 
+// Used to determine if the event was a mouse event
 var mouseEvents = [ "button", "buttons", "clientX", "clientY", 
     "fromElement", "offsetX", "offsetY", "pageX", "pageY", "screenX", "screenY", "toElement"];
 
+// Used to determine if the event fire was a key event
 var keyEvents = [ "char", "charCode", "key", "keyCode" ];
+
+// Used for calculating mouse event positions
+var doc = document || {};
+var root = doc.documentElement || {};
 
 /**
  * The event wrapper object. This is passed to event
@@ -33,7 +40,7 @@ var keyEvents = [ "char", "charCode", "key", "keyCode" ];
  * extend it will some other properties and methods.
  * @param {DOMEvent} e Event fired from DOM event
  */
-var Event = function(e) {
+function Event(e) {
   this.original = e;
 
   // Pull over all properties from the event object
@@ -57,41 +64,80 @@ var Event = function(e) {
     this.bubbles = indexof(bubbleEvents, e.type) > -1;
   }
 
-  // Key events
-  if ( indexof(keyEvents, e.type) !== -1 && e.which == null ) {
-    this.which = e.charCode || e.keyCode;
+  // Normalize different event types
+  this._normalizeKeyEvent();
+  this._normalizeMouseEvent();
+};
+
+/**
+ * If the native event function has been prevented
+ * @type {Boolean}
+ */
+Event.prototype.defaultPrevented = false;
+
+/**
+ * Is this event a mouse event.
+ * @return {Boolean}
+ */
+Event.prototype.isMouseEvent = function() {
+  return indexof(mouseEvents, this.type) !== -1;
+};
+
+/**
+ * Is this event a keypress event
+ * @return {Boolean}
+ */
+Event.prototype.isKeyEvent = function() {
+  return indexof(keyEvents, this.type) !== -1;
+};
+
+/**
+ * Normalize the event if it is a key event.
+ * @api private
+ * @return {void}
+ */
+Event.prototype._normalizeKeyEvent = function() {
+  if ( this.isKeyEvent() === false ) {
+    return false;
+  }
+  this.keyCode = e.keyCode || e.which;
+};
+
+/**
+ * Normalize the event if it is a mouse event. We set the
+ * rightClick flag and fix the page coordinates. Also
+ * fixes the relatedElement.
+ * @api private
+ * @return {void}
+ */
+Event.prototype._normalizeMouseEvent = function() {
+  if ( this.isMouseEvent() === false ) {
+    return false;
   }
 
-  // Mouse events
-  if ( indexof(mouseEvents, e.type) !== -1) {
+  var e = this.original;
 
-    // Calculate pageX/Y if missing and clientX/Y available
-    if ( this.pageX == null && this.clientX != null ) {
-      var eventDoc = this.target.ownerDocument || document;
-      var doc = eventDoc.documentElement;
-      var body = eventDoc.body;
-      this.pageX = e.clientX + ( doc && doc.scrollLeft || body && body.scrollLeft || 0 ) - ( doc && doc.clientLeft || body && body.clientLeft || 0 );
-      this.pageY = e.clientY + ( doc && doc.scrollTop  || body && body.scrollTop  || 0 ) - ( doc && doc.clientTop  || body && body.clientTop  || 0 );
-    }
+  // Was this a right click event?
+  this.rightClick = e.which === 3 || e.button === 2;
 
-    // Add relatedTarget, if necessary
-    var fromElement = e.fromElement;
-    if ( !e.relatedTarget && fromElement ) {
-      this.relatedTarget = fromElement === this.target ? e.toElement : fromElement;
-    }
+  // Calculate pageX/Y if missing and clientX/Y available
+  if (e.pageX || e.pageY) {
+    this.clientX = e.pageX;
+    this.clientY = e.pageY;
+  } else if (e.clientX || e.clientY) {
+    this.clientX = e.clientX + doc.body.scrollLeft + root.scrollLeft;
+    this.clientY = e.clientY + doc.body.scrollTop + root.scrollTop;
+  }
 
-    // Add which for click: 1 === left; 2 === middle; 3 === right
-    // Note: button is not normalized, so don't use it
-    var button = e.button;
-    if ( !e.which && button !== undefined ) {
-      this.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
-    }
+  // Add relatedTarget, if necessary
+  if ( !e.relatedTarget && e.fromElement ) {
+    this.relatedTarget = e.fromElement === this.target ? e.toElement : e.fromElement;
   }
 };
 
 /**
  * Prevent default browser event
- * @return {[type]} [description]
+ * @return {void}
  */
 Event.prototype.preventDefault = function() {
   var e = this.original;
@@ -106,6 +152,7 @@ Event.prototype.preventDefault = function() {
 };
 
 /**
+ * Stop the event from propagating upwards
  * @return {void}
  */
 Event.prototype.stopPropagation = function() {
