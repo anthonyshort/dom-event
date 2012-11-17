@@ -1,0 +1,16 @@
+{
+  "name": "dom-event",
+  "repo": "anthonyshort/dom-event",
+  "description": "Simple DOM event wrapper for cross-browser support",
+  "version": "0.0.1",
+  "keywords": [],
+  "dependencies": {
+    "component-indexof": "*",
+    "anthonyshort-extend": "*"
+  },
+  "development": {},
+  "license": "MIT",
+  "scripts": [
+    "index.js"
+  ]
+}
