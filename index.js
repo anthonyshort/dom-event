@@ -1,5 +1,4 @@
-var indexOf = require('indexof');
-var extend = require('extend');
+var indexof = require('indexof');
 
 /**
  * DOM Event wrapper for IE8+. The event object is broken in
@@ -18,16 +17,7 @@ var extend = require('extend');
  */
 
 // Events that will bubble in IE8
-var bubbleEvents = [ "select", "scroll", "click", "dblclick",
-    "mousedown", "mousemove", "mouseout", "mouseover", "mouseup", "wheel", "textinput",
-    "keydown", "keypress", "keyup"];
-
-// Used to determine if the event was a mouse event
-var mouseEvents = [ "button", "buttons", "clientX", "clientY", 
-    "fromElement", "offsetX", "offsetY", "pageX", "pageY", "screenX", "screenY", "toElement"];
-
-// Used to determine if the event fire was a key event
-var keyEvents = [ "char", "charCode", "key", "keyCode" ];
+var bubbleEvents = "select scroll click dblclick mousedown mousemove mouseout mouseover mouseup wheel textinput keydown keypress keyup".split(' ');
 
 // Used for calculating mouse event positions
 var doc = document || {};
@@ -41,19 +31,20 @@ var root = doc.documentElement || {};
  * @param {DOMEvent} e Event fired from DOM event
  */
 function Event(e) {
+  var self = this;
   this.original = e;
 
   // Pull over all properties from the event object
-  extend(this, e);
-
-  // Set target
-  if( !e.target ) {
-    this.target = e.srcElement || document;
+  for(var key in e) {
+    if( !this[key] ) this[key] = e[key];
   }
 
+  // Set target
+  this.target = this.target || e.srcElement || document;
+
   // Target should not be a text node
-  if ( e.target.nodeType === 3 ) {
-    this.target = e.target.parentNode;
+  if ( this.target.nodeType === 3 ) {
+    this.target = this.target.parentNode;
   }
 
   // For mouse/key events, metaKey==false if it's undefined 
@@ -80,7 +71,7 @@ Event.prototype.defaultPrevented = false;
  * @return {Boolean}
  */
 Event.prototype.isMouseEvent = function() {
-  return indexof(mouseEvents, this.type) !== -1;
+  return this.type.match(/click|mouse(?!(.*wheel|scroll))|menu|drag|drop/i) != null;
 };
 
 /**
@@ -88,7 +79,7 @@ Event.prototype.isMouseEvent = function() {
  * @return {Boolean}
  */
 Event.prototype.isKeyEvent = function() {
-  return indexof(keyEvents, this.type) !== -1;
+  return this.type.match(/key/i) != null;
 };
 
 /**
@@ -100,7 +91,7 @@ Event.prototype._normalizeKeyEvent = function() {
   if ( this.isKeyEvent() === false ) {
     return false;
   }
-  this.keyCode = e.keyCode || e.which;
+  this.keyCode = this.keyCode || this.which;
 };
 
 /**

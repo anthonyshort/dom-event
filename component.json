@@ -5,8 +5,7 @@
   "version": "0.0.1",
   "keywords": [],
   "dependencies": {
-    "component/indexof": "*",
-    "anthonyshort/extend": "*"
+    "component/indexof": "*"
   },
   "development": {},
   "license": "MIT",
